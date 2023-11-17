@@ -9,6 +9,10 @@ function clamp(num, min, max)
     return math.min(math.max(num, min), max)
 end
 
+function tick()
+    return system.getTimer()
+end
+
 local _x = 320/2
 local _y = 500/2
 
@@ -20,11 +24,11 @@ function player.new()
     self.speed = 3.4
     self.airSpeed = 1
     self.terminalVelocity = 10
-    self.timeUntilLongJump = .3
+    self.timeUntilLongJump = 100
 
-    self.jumpPower = 10
-    self.powerJumpMultiplier = 1.
-    self.doubleJumpMultiplier = .5
+    self.jumpPower = 8
+    self.powerJumpPower = 10
+    self.doubleJumpPower = 10
 
     -- bounds
     self.min_y = _y - 150
@@ -39,11 +43,13 @@ function player.new()
     self.position = vector2.new(160, 50)
     self.velocity = vector2.new()
 
-    self.jumpsLeft = 2
+    self.jumpsLeft = 1
     self.grounded = false
     self.requestJump = false
     self.wishDir = vector2.new()
     self.lastJump = nil
+    self.jumpHeld = false
+    self.wDown = false
 
     -- internal
     self._w, self._h = 2*self.size, 2.2*self.size
@@ -74,24 +80,58 @@ function player:movement()
     self.velocity = vector2.new(self.wishDir.x * self.speed, self.velocity.y)
 end
 
-function player:legacy_jump()
-    if self.jumpsLeft <= 0 then return end
-    self.jumpsLeft = self.jumpsLeft - 1
-    self.velocity.y = -self.jumpPower
-end
-
 function player:jump()
     if self.jumpsLeft <= 0 then return end
     self.jumpsLeft = self.jumpsLeft - 1
+
+    if self.grounded then
+        self.lastJump = tick()
+    end
+    
+    if not self.grounded then
+        self.velocity.y = -self.doubleJumpPower
+        return
+    end
     self.velocity.y = -self.jumpPower
 end
 
 function player:update(dt)
-    if not self.grounded and self.position.y > 398.5 then
+    local wasGrounded = self.grounded
+    self.grounded = self.position.y > 398.5
+    local wasWDown =self.wDown
+    self.wDown = inputUtil.isKeyDown("w")
+
+    -- reset jumps
+    if self.grounded then
         self.jumpsLeft = 2
     end
 
-    self.grounded = self.position.y > 398.5
+    --detect jumps
+    if self.wDown and not wasWDown then
+        if self.grounded then
+            self.jumpHeld = tick()
+            self.velocity.y = -self.jumpPower
+        elseif self.jumpsLeft > 1 then
+            self.jumpHeld = false
+            self.jumpsLeft = self.jumpsLeft - 1
+            self.velocity.y = -self.doubleJumpPower
+        end
+    end
+
+    if not self.grounded and not self.wDown then
+        self.jumpHeld = false
+    end
+
+    if self.wDown and wasWDown and not self.grounded and self.jumpHeld then
+        local timeSince = tick() - self.jumpHeld
+        if timeSince > 400 then 
+            self.jumpHeld = false
+            return
+        end
+        self.velocity.y = -self.jumpPower
+    end
+
+    
     -- do movement
     self:movement()
     -- apply vel
@@ -117,7 +157,7 @@ function player:update(dt)
     -- apply movement to phys
     self._phys.x, self._phys.y = self.position.x, self.position.y
 
-    self._text.text = math.round(self.velocity:magnitude()*10)/10
+    self._text.text = self.gravity.y
 end
 
 return player

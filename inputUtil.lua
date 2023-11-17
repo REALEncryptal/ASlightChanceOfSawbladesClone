@@ -11,7 +11,7 @@ function _listen(event)
         input.keys[event.keyName] = nil
         callbacks = input.keyup[event.keyName] or {}
     else
-        input.keys[event.keyName] = tick()
+        input.keys[event.keyName] = os.time()
         callbacks = input.keydown[event.keyName] or {}
     end
 
