@@ -9,6 +9,12 @@ function Vector2.new(x, y)
     return self
 end
 
+--vector2.from angle func
+function Vector2.fromAngle(angle)
+    angle = math.rad(angle)
+    return Vector2.new(math.cos(angle), math.sin(angle))
+end
+
 -- Addition
 function Vector2.__add(a, b)
     return Vector2.new(a.x + b.x, a.y + b.y)

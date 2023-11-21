@@ -40,7 +40,7 @@ function player.new()
     self.size = 10
 
     --properties
-    self.position = vector2.new(160, 50)
+    self.position = vector2.new(_x, _y + self.max_x)
     self.velocity = vector2.new()
 
     self.jumpsLeft = 1
@@ -51,17 +51,25 @@ function player.new()
     self.jumpHeld = false
     self.wDown = false
 
+    self.chargedProjectiles = {}
+
+    self.onScore = nil
+
     -- internal
-    self._w, self._h = 2*self.size, 2.2*self.size
+    self._w, self._h = 1.5*self.size, 2.2*self.size
     self._phys = display.newRect(200, 200, self._w, self._h) 
     self._phys.fill = {1, 0.5, 0}
-    self._text = display.newText( "hello", 100, 10, native.systemFont, 25)
 
     inputUtil.onInputBegan("w", function()
         --self:jump()
     end)
 
     return self
+end
+
+function player:hit()
+    self.position = vector2.new(160, 50)
+    self.velocity = vector2.new()
 end
 
 function player:movement()
@@ -80,19 +88,16 @@ function player:movement()
     self.velocity = vector2.new(self.wishDir.x * self.speed, self.velocity.y)
 end
 
-function player:jump()
-    if self.jumpsLeft <= 0 then return end
-    self.jumpsLeft = self.jumpsLeft - 1
+function player:clearChargedProjectiles()
+    local projectiles = #self.chargedProjectiles
 
-    if self.grounded then
-        self.lastJump = tick()
+    for _, proj in ipairs(self.chargedProjectiles) do
+        proj:destroy()
     end
-    
-    if not self.grounded then
-        self.velocity.y = -self.doubleJumpPower
-        return
-    end
-    self.velocity.y = -self.jumpPower
+
+    self.chargedProjectiles = {}
+
+    self.onScore(projectiles)
 end
 
 function player:update(dt)
@@ -100,6 +105,10 @@ function player:update(dt)
     self.grounded = self.position.y > 398.5
     local wasWDown =self.wDown
     self.wDown = inputUtil.isKeyDown("w")
+
+    if self.grounded and #self.chargedProjectiles > 0 then
+        self:clearChargedProjectiles()
+    end
 
     -- reset jumps
     if self.grounded then
@@ -156,8 +165,6 @@ function player:update(dt)
 
     -- apply movement to phys
     self._phys.x, self._phys.y = self.position.x, self.position.y
-
-    self._text.text = self.gravity.y
 end
 
 return player
